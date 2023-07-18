@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class CreateReceitaDTO {
-    private Long userId;
+    private String authorUsername;
     private String name;
     private String desc;
     private Integer porcoes;

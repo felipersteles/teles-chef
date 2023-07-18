@@ -12,10 +12,10 @@ import br.teles.chef.repo.UserRepo;
 
 @Service
 public class ReceitaService {
-    
+
     @Autowired
     private ReceitaRepo repo;
-    
+
     @Autowired
     private UserRepo userRepo;
 
@@ -24,27 +24,27 @@ public class ReceitaService {
     }
 
     public Receita createReceita(CreateReceitaDTO receita) {
-        
+
         validateReceita(receita);
 
         Receita newReceita = Receita.builder()
-        .desc(receita.getDesc())
-        .modoPreparo(receita.getModoPreparo())
-        .name(receita.getName())
-        .porcoes(receita.getPorcoes())
-        .chef(userRepo.findById(receita.getUserId()).get())
-        .build();
+                .desc(receita.getDesc())
+                .modoPreparo(receita.getModoPreparo())
+                .name(receita.getName())
+                .porcoes(receita.getPorcoes())
+                .chef(userRepo.findByUsername(receita.getAuthorUsername()).get())
+                .build();
 
         return repo.save(newReceita);
 
     }
 
-    private void validateReceita(CreateReceitaDTO receita){
-        if(receita.getName() == null || receita.getName().trim().isEmpty()){
+    private void validateReceita(CreateReceitaDTO receita) {
+        if (receita.getName() == null || receita.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Nome não pode ser vazio");
         }
 
-        if(userRepo.findById(receita.getUserId()).isEmpty()){
+        if (userRepo.findByUsername(receita.getAuthorUsername()).isEmpty()) {
             throw new IllegalArgumentException("Usuário não encontrado");
         }
     }

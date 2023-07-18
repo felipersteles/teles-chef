@@ -13,7 +13,7 @@ import br.teles.chef.service.UserService;
 @RestController
 @RequestMapping(value = "/user")
 public class UserController {
-    
+
     @Autowired
     private UserService userService;
 
