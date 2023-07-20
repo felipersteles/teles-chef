@@ -44,6 +44,7 @@ public class JwtUtils {
     }
 
     public ResponseCookie generateJwtCookie(UserDetailsCustom userPrincipal) {
+        userPrincipal.getAuthorities();
         String jwt = generateTokenFromUsername(userPrincipal.getUsername());
         ResponseCookie cookie = ResponseCookie.from(jwtCookie, jwt).path("/api").maxAge(24 * 60 * 60).httpOnly(true)
                 .build();
@@ -82,11 +83,16 @@ public class JwtUtils {
     }
 
     public String generateTokenFromUsername(String username) {
-        return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(key(), SignatureAlgorithm.HS256)
-                .compact();
+        try {
+            return Jwts.builder()
+                    .setSubject(username)
+                    .setIssuedAt(new Date())
+                    .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                    .signWith(key(), SignatureAlgorithm.HS256)
+                    .compact();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while generation token", e);
+        }
+
     }
 }

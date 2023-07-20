@@ -31,10 +31,8 @@ public class WebSecurityConfig {
     @Autowired
     private AuthEntryPointJwt unauthorizedHandler;
 
-    @Bean
-    public AuthTokenFilter authenticationJwtTokenFilter() {
-        return new AuthTokenFilter();
-    }
+    @Autowired
+    private AuthTokenFilter tokenFilter;
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -62,17 +60,15 @@ public class WebSecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/receitas/add").hasAnyRole("CHEF")
-                        .requestMatchers("/api/receitas/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/receitas/listar").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/receitas/chef").hasRole("CHEF")
+                        .requestMatchers(HttpMethod.POST, "/api/receitas/add").hasRole("CHEF")
                         .anyRequest().authenticated());
 
-        // fix H2 database console: Refused to display ' in a frame because it set
-        // 'X-Frame-Options' to 'deny'
-        http.headers(headers -> headers.frameOptions(frameOption -> frameOption.sameOrigin()));
-
+        http.cors(cors -> cors.disable());
         http.authenticationProvider(authenticationProvider());
 
-        http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterAfter(new CsrfTokenResponseHeaderBindingFilter(), CsrfFilter.class);
 
         return http.build();

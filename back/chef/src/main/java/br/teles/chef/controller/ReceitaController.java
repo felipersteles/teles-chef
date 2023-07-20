@@ -16,8 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.teles.chef.controller.exception.ExceptionResponse;
 import br.teles.chef.domain.dto.CreateReceitaDTO;
+import br.teles.chef.domain.dto.ReceitaDTO;
 import br.teles.chef.domain.model.Receita;
 import br.teles.chef.service.ReceitaService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/receitas")
@@ -33,9 +35,9 @@ public class ReceitaController {
     @GetMapping("/listar")
     public ResponseEntity<?> listar() {
 
-        List<Receita> receitas = receitaService.findAll();
+        List<ReceitaDTO> receitas = receitaService.findAll();
 
-        return new ResponseEntity<List<Receita>>(receitas, HttpStatus.OK);
+        return new ResponseEntity<List<ReceitaDTO>>(receitas, HttpStatus.OK);
     }
 
     @GetMapping("/chef")
@@ -46,18 +48,25 @@ public class ReceitaController {
     }
 
     @PostMapping("/add")
-    @PreAuthorize("hasRole('CHEF')")
-    public ResponseEntity<?> salvar(@RequestBody CreateReceitaDTO receita) {
-        System.out.println("tentando fazer " + receita.getName());
+    public ResponseEntity<?> salvar(@RequestBody CreateReceitaDTO receita, HttpServletRequest req) {
+        System.out.println("tentando fazer " + receita.getName() + " do chef: " + receita.getChef());
 
         try {
-            Receita newReceita = receitaService.createReceita(receita);
+            Receita newReceita = receitaService.createReceita(receita, req);
 
             return new ResponseEntity<Receita>(newReceita, HttpStatus.CREATED);
         } catch (Exception e) {
-            ExceptionResponse exception = new ExceptionResponse(e.getMessage(), HttpStatus.BAD_REQUEST);
 
-            return new ResponseEntity<ExceptionResponse>(exception, HttpStatus.BAD_REQUEST);
+            ExceptionResponse exception = new ExceptionResponse();
+            if (e.getMessage().equals("Usuário não autorizado.")) {
+                exception.setCode(HttpStatus.UNAUTHORIZED.value());
+            } else {
+                exception.setCode(HttpStatus.BAD_REQUEST.value());
+            }
+
+            exception.setMessage(e.getMessage());
+
+            return new ResponseEntity<ExceptionResponse>(exception, HttpStatus.valueOf(exception.getCode()));
         }
     }
 }

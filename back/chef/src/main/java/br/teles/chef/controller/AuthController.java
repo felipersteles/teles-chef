@@ -1,12 +1,11 @@
 package br.teles.chef.controller;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -56,24 +55,32 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginDTO loginRequest) {
 
-        Authentication authentication = authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
-                        loginRequest.getPassword()));
+        Authentication authentication;
+        try {
+            authentication = authenticationManager
+                    .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
+                            loginRequest.getPassword()));
+
+        } catch (Exception e) {
+            // TODO: handle exception
+            return new ResponseEntity<String>(e.getMessage(), HttpStatus.FORBIDDEN);
+        }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         UserDetailsCustom userDetails = (UserDetailsCustom) authentication.getPrincipal();
 
-        ResponseCookie jwtCookie = jwtUtils.generateJwtCookie(userDetails);
+        // List<String> roles = userDetails.getAuthorities().stream()
+        // .map(item -> item.getAuthority())
+        // .collect(Collectors.toList());
 
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toList());
+        String token = jwtUtils.generateTokenFromUsername(userDetails.getUsername());
+        ResponseCookie jwtCookie = jwtUtils.generateJwtCookie(userDetails);
 
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
                 .body(new UserInfoResponse(userDetails.getId(),
                         userDetails.getUsername(),
-                        roles));
+                        token));
     }
 
     @PostMapping("/cadastro")
@@ -91,13 +98,11 @@ public class AuthController {
                 .password(encoder.encode(signUpRequest.getPassword())).build();
 
         Set<String> strRoles = signUpRequest.getRoles();
-        System.out.println(signUpRequest.getRoles().toString());
 
         Set<Role> roles = new HashSet<>();
 
         // Atribui roles ao novo user
         if (strRoles == null) {
-            System.out.println("str roles is empty");
 
             Role userRole = roleRepository.findByName(ERole.ROLE_USER)
                     .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
