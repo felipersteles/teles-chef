@@ -4,9 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -19,10 +17,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.teles.chef.controller.exception.ExceptionResponse;
 import br.teles.chef.controller.response.MessageResponse;
 import br.teles.chef.controller.response.UserInfoResponse;
 import br.teles.chef.domain.dto.CadastroDTO;
 import br.teles.chef.domain.dto.LoginDTO;
+import br.teles.chef.domain.dto.RefreshTokenDTO;
 import br.teles.chef.domain.model.ERole;
 import br.teles.chef.domain.model.Role;
 import br.teles.chef.domain.model.User;
@@ -30,6 +30,7 @@ import br.teles.chef.repo.RoleRepo;
 import br.teles.chef.repo.UserRepo;
 import br.teles.chef.security.jwt.JwtUtils;
 import br.teles.chef.security.services.UserDetailsCustom;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -75,12 +76,10 @@ public class AuthController {
         // .collect(Collectors.toList());
 
         String token = jwtUtils.generateTokenFromUsername(userDetails.getUsername());
-        ResponseCookie jwtCookie = jwtUtils.generateJwtCookie(userDetails);
 
-        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
-                .body(new UserInfoResponse(userDetails.getId(),
-                        userDetails.getUsername(),
-                        token));
+        return new ResponseEntity<UserInfoResponse>(new UserInfoResponse(userDetails.getId(),
+                userDetails.getUsername(),
+                token), HttpStatus.OK);
     }
 
     @PostMapping("/cadastro")
@@ -148,10 +147,20 @@ public class AuthController {
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser() {
-        ResponseCookie cookie = jwtUtils.getCleanJwtCookie();
-        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(new MessageResponse("You've been signed out!"));
+    @PostMapping("/refreshToken")
+    public ResponseEntity<?> refreshToken(HttpServletRequest req) {
+        System.out.println("atualizando token");
+        // TODO: refresh token service and refresh token entity
+        try {
+
+            RefreshTokenDTO token = jwtUtils.generateNewToken(req);
+
+            return new ResponseEntity<RefreshTokenDTO>(token, HttpStatus.OK);
+        } catch (Exception e) {
+            // TODO: handle exception
+
+            ExceptionResponse res = new ExceptionResponse(e.getMessage(), HttpStatus.UNAUTHORIZED.value());
+            return new ResponseEntity<ExceptionResponse>(res, HttpStatus.valueOf(res.getCode()));
+        }
     }
 }
