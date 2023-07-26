@@ -59,13 +59,13 @@ public class WebSecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/**").permitAll()
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/cadastr").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/receitas/listar").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/receitas/chef").hasRole("CHEF")
                         .requestMatchers(HttpMethod.POST, "/api/receitas/add").hasRole("CHEF")
                         .anyRequest().authenticated());
 
-        http.cors(cors -> cors.disable());
         http.authenticationProvider(authenticationProvider());
 
         http.addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class);

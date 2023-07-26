@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { AuthService } from "../services";
 
 export const useAuth = () => {
   return useContext(AuthContext);
@@ -9,42 +10,77 @@ export type LoginAuthParams = {
   password: string;
 };
 
+export type RefreshTokenParams = {
+  refreshToken: string;
+};
+
 type AuthProviderParams = {
   children: JSX.Element;
 };
 
 type AuthValueParams = {
-  token: string | null;
+  userSession: UserSessionParams | null;
   onLogin: (user: LoginAuthParams) => void;
   onLogout: () => void;
+};
+
+type UserSessionParams = {
+  id: number;
+  refreshToken: string;
+  username: string;
+  expiresIn: string;
 };
 
 export const AuthContext = createContext<AuthValueParams>(
   {} as AuthValueParams
 );
 
+const service = new AuthService();
+
 export const AuthProvider = ({ children }: AuthProviderParams) => {
-  const [token, setToken] = useState<string | null>(null);
+  const [userSession, setUserSession] = useState<UserSessionParams | null>(
+    null
+  );
 
   const handleLogin = ({ username, password }: LoginAuthParams) => {
-    console.log("tentando login com", username, "and", password);
+    service
+      .login({ username, password })
+      .then(({ data }) => {
+        localStorage.setItem("user", JSON.stringify(data));
+        setUserSession(data);
+      })
+      .catch((err) => {
+        console.error(err);
+        if ([403]) alert("Usuário não encontrado");
+      });
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setToken(null);
+    localStorage.removeItem("user");
+    setUserSession(null);
   };
 
   const value: AuthValueParams = {
-    token,
+    userSession,
     onLogin: handleLogin,
     onLogout: handleLogout,
   };
 
+  // ao atualizar pagina a autenticacao é modificada
   useEffect(() => {
-    const userToken = localStorage.getItem("token");
+    const userToken: UserSessionParams = JSON.parse(
+      localStorage.getItem("user") || "{}"
+    );
+
     if (userToken) {
-      setToken(userToken);
+      service
+        .refreshToken({ refreshToken: userToken.refreshToken })
+        .then(({ data }) => {
+          console.log(data);
+        })
+        .catch((err) => {
+          localStorage.removeItem("user");
+        });
     }
   }, []);
 

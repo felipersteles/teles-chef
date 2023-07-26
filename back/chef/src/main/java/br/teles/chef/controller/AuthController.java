@@ -4,7 +4,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,22 +20,24 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.teles.chef.controller.exception.ExceptionResponse;
+import br.teles.chef.controller.request.TokenRefreshRequest;
 import br.teles.chef.controller.response.MessageResponse;
 import br.teles.chef.controller.response.UserInfoResponse;
 import br.teles.chef.domain.dto.CadastroDTO;
 import br.teles.chef.domain.dto.LoginDTO;
-import br.teles.chef.domain.dto.RefreshTokenDTO;
 import br.teles.chef.domain.model.ERole;
 import br.teles.chef.domain.model.Role;
 import br.teles.chef.domain.model.User;
+import br.teles.chef.domain.security.RefreshToken;
 import br.teles.chef.repo.RoleRepo;
 import br.teles.chef.repo.UserRepo;
 import br.teles.chef.security.jwt.JwtUtils;
 import br.teles.chef.security.services.UserDetailsCustom;
-import jakarta.servlet.http.HttpServletRequest;
+import br.teles.chef.service.RefreshTokenService;
+import br.teles.chef.service.excpetion.TokenRefreshException;
 import jakarta.validation.Valid;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600, allowCredentials = "true")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -49,6 +53,9 @@ public class AuthController {
 
     @Autowired
     PasswordEncoder encoder;
+
+    @Autowired
+    RefreshTokenService refreshTokenService;
 
     @Autowired
     JwtUtils jwtUtils;
@@ -75,11 +82,16 @@ public class AuthController {
         // .map(item -> item.getAuthority())
         // .collect(Collectors.toList());
 
-        String token = jwtUtils.generateTokenFromUsername(userDetails.getUsername());
+        ResponseCookie jwtCookie = jwtUtils.generateJwtCookie(userDetails);
+
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
+
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.add(HttpHeaders.SET_COOKIE, jwtCookie.toString());
 
         return new ResponseEntity<UserInfoResponse>(new UserInfoResponse(userDetails.getId(),
                 userDetails.getUsername(),
-                token), HttpStatus.OK);
+                refreshToken.getToken(), refreshToken.getExpiryDate()), httpHeaders, HttpStatus.OK);
     }
 
     @PostMapping("/cadastro")
@@ -148,14 +160,26 @@ public class AuthController {
     }
 
     @PostMapping("/refreshToken")
-    public ResponseEntity<?> refreshToken(HttpServletRequest req) {
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
         System.out.println("atualizando token");
         // TODO: refresh token service and refresh token entity
+
+        String requestRefreshToken = request.getRefreshToken();
         try {
 
-            RefreshTokenDTO token = jwtUtils.generateNewToken(req);
-
-            return new ResponseEntity<RefreshTokenDTO>(token, HttpStatus.OK);
+            return refreshTokenService.findByToken(requestRefreshToken)
+                    .map(refreshTokenService::verifyExpiration)
+                    .map(RefreshToken::getUser)
+                    .map(user -> {
+                        ResponseCookie jwtCookie = jwtUtils.generateJwtCookie(user);
+                        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+                        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
+                                .body(new UserInfoResponse(user.getId(),
+                                        user.getUsername(),
+                                        refreshToken.getToken(), refreshToken.getExpiryDate()));
+                    })
+                    .orElseThrow(() -> new TokenRefreshException(requestRefreshToken,
+                            "Refresh token is not in database!"));
         } catch (Exception e) {
             // TODO: handle exception
 
@@ -163,4 +187,5 @@ public class AuthController {
             return new ResponseEntity<ExceptionResponse>(res, HttpStatus.valueOf(res.getCode()));
         }
     }
+
 }

@@ -6,9 +6,14 @@ import java.util.Date;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.WebUtils;
+import jakarta.servlet.http.Cookie;
 
 import br.teles.chef.domain.dto.RefreshTokenDTO;
+import br.teles.chef.domain.model.User;
+import br.teles.chef.security.services.UserDetailsCustom;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -41,12 +46,9 @@ public class JwtUtils {
         String token = getJwtFromBearer(request);
         try {
             validateJwtToken(token);
-            System.out.println("chave antiga: " + token);
 
             String user = getUserNameFromJwtToken(token);
             String newToken = generateTokenFromUsername(user);
-
-            System.out.println("nova chave: " + newToken);
 
             return new RefreshTokenDTO(user, newToken);
         } catch (Exception e) {
@@ -95,10 +97,34 @@ public class JwtUtils {
 
     }
 
+    public String getJwtFromCookies(HttpServletRequest request) {
+        Cookie cookie = WebUtils.getCookie(request, jwtCookie);
+        if (cookie != null) {
+            return cookie.getValue();
+        } else {
+            return null;
+        }
+    }
+
+    public ResponseCookie generateJwtCookie(UserDetailsCustom userPrincipal) {
+        String jwt = generateTokenFromUsername(userPrincipal.getUsername());
+        ResponseCookie cookie = ResponseCookie.from(jwtCookie, jwt).path("/api").maxAge(24 * 60 * 60).httpOnly(true)
+                .build();
+        return cookie;
+    }
+
+    public ResponseCookie generateJwtCookie(User user) {
+        String jwt = generateTokenFromUsername(user.getUsername());
+        ResponseCookie cookie = ResponseCookie.from(jwtCookie, jwt).path("/api").maxAge(24 * 60 * 60).httpOnly(true)
+                .build();
+        return cookie;
+    }
+
     private String recoverToken(HttpServletRequest request) {
         var authHeader = request.getHeader("Authorization");
         if (authHeader == null)
             return null;
         return authHeader.replace("Bearer ", "");
     }
+
 }

@@ -43,7 +43,7 @@ public class ReceitaService {
 
     public Receita createReceita(CreateReceitaDTO receita, HttpServletRequest req) throws IOException {
 
-        String token = jwtUtils.getJwtFromBearer(req);
+        String token = jwtUtils.getJwtFromCookies(req);
 
         validateReceita(receita, token);
 

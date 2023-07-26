@@ -23,7 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/receitas")
-@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600, allowCredentials = "true")
 public class ReceitaController {
 
     @Autowired
@@ -49,7 +49,6 @@ public class ReceitaController {
 
     @PostMapping("/add")
     public ResponseEntity<?> salvar(@RequestBody CreateReceitaDTO receita, HttpServletRequest req) {
-        System.out.println("tentando fazer " + receita.getName() + " do chef: " + receita.getChef());
 
         try {
             Receita newReceita = receitaService.createReceita(receita, req);
