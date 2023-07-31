@@ -28,7 +28,7 @@ type UserSessionParams = {
   id: number;
   refreshToken: string;
   username: string;
-  expiresIn: string;
+  expires: string;
 };
 
 export const AuthContext = createContext<AuthValueParams>(
@@ -72,13 +72,15 @@ export const AuthProvider = ({ children }: AuthProviderParams) => {
       localStorage.getItem("user") || "{}"
     );
 
-    if (userToken) {
+    // se tiver user chamar a API
+    if (Boolean(localStorage.getItem("user"))) {
       service
         .refreshToken({ refreshToken: userToken.refreshToken })
         .then(({ data }) => {
-          console.log(data);
+          localStorage.setItem("user", JSON.stringify(data));
+          setUserSession(data);
         })
-        .catch((err) => {
+        .catch(() => {
           localStorage.removeItem("user");
         });
     }

@@ -27,7 +27,6 @@ export const Home = () => {
     receitaService
       .getAllReceitas()
       .then(({ data }) => {
-        console.log(data);
         setReceitas(data);
       })
       .catch((err) => {
